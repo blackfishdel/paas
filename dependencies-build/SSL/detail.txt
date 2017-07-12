@@ -1,0 +1,13 @@
+输入密钥库口令:  123456
+您的名字与姓氏是什么?
+  [Unknown]:  test.joinwe.com.cn
+您的组织单位名称是什么?
+  [Unknown]:  zkp
+您的组织名称是什么?
+  [Unknown]:  zkp
+您所在的城市或区域名称是什么?
+  [Unknown]:  sh
+您所在的省/市/自治区名称是什么?
+  [Unknown]:  sh
+该单位的双字母国家/地区代码是什么?
+  [Unknown]:  zh

@@ -1,0 +1,79 @@
+{
+	"project_name": "zkp-pbms",
+	"web_module": "pbms-web",
+	"last_tag": "v1.3.5-release",
+	"modules": 
+	[
+		{
+			"name": "pbms-web"
+		}
+	],
+
+	"dependencies": 
+	[
+		{
+			"project": "zkp-pbap",
+			"version": "4.0.0",
+			"branch": "4.0.0-dev",
+			"tag": "",
+			"modules": 
+			[
+				{
+					"name": "pbap-bo",
+					"version": "4.0.0"
+				}
+			],
+
+			"dependencies": 
+			[
+				
+			]
+		},
+
+		{
+			"project": "bssp",
+			"version": "3.0.0",
+			"branch": "3.0.0-dev",
+			"tag": "",
+			"modules": 
+			[
+				{
+					"name": "bssp-message",
+					"version": "3.0.0"
+				},
+
+				{
+					"name": "bssp-api",
+					"version": "3.0.0"
+				}
+			],
+
+			"dependencies": 
+			[
+				{
+					"project": "bacs",
+					"version": "2.0.0",
+					"branch": "2.0.0-dev",
+					"tag": "",
+					"modules": 
+					[
+						{
+							"name": "bacs-message",
+							"version": "2.0.0"
+						},
+
+						{
+							"name": "bacs-api",
+							"version": "2.0.0"
+						}
+					],
+
+					"dependencies": 
+					[
+						
+					]
+				}
+			]
+		}
+	]
+}

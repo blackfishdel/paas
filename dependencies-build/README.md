@@ -4,12 +4,11 @@
 解决项目构建依赖
 
 ##如何比较目标项目的2个版本
-通过 branch	-> master
-<br />
-tag	-> master
-<br />
-branch != tag -> pacth.zip
-<br />
+通过
+> branch	-> master<br/>
+> tag	-> master<br/>
+> branch != tag -> pacth.zip
+
 pacth.zip -> master -> compile -> \*.class -> project_name/ ->project_name.zip
 
 ```bash
