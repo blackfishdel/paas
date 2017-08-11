@@ -1,4 +1,4 @@
-#/bin/bash -ex
+#!/bin/bash -ex
 
 echo "180.169.26.102	zkpregistry.com" >> /etc/hosts
 

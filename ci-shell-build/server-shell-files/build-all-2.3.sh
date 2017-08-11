@@ -248,10 +248,13 @@ mv $(ls -a | grep -v "^base_dir$" | grep -v "\.$" | grep -v "\.\.$") \
 if [ ${now_branch} ];then
 	cd ${base_dir}
 	git checkout -b "${now_branch}" "origin/${now_branch}"
+	git stash
 	git pull
 elif [ ${now_tag} ];then
 	cd ${base_dir}
 	git checkout -b "${now_tag}" "${now_tag}"
+	git stash
+	git pull
 fi
 #------------------------------------------------------------------------------
 #create maven_repository
