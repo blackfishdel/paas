@@ -21,6 +21,8 @@ COPY server.xml ${TOMCAT_HOME}/conf/server.xml
 COPY catalina.properties ${TOMCAT_HOME}/conf/catalina.properties
 
 #VOLUME ["/logs","/dockerv/private/tomcatlogs"]
+VOLUME ["/dev/urandom","/dev/random"]
+
 #创建日志目录链接
 RUN mkdir /logs && \
 		mkdir -p /dockerv/private && \
