@@ -58,3 +58,5 @@ npm --buildVersion=v1.0.0 run build
 mv './dist' './pc_v1.0.0'
 zip -r 'pc_v1.0.0.zip' './pc_v1.0.0'
 
+
+iptables -A INPUT -p tcp --dport ssh -j ACCEPT
