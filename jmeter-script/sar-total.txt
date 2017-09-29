@@ -1,0 +1,60 @@
+docker pull zkpregistry.com:5043/pbap-web:3.9.0-ALPHA 
+
+zkpd gateway-1.0.0.s-2297242 gateway:1.0.0-ALPHA
+zkpd pbap-3.9.0.14.s-2308162 pbap-web:3.9.0-ALPHA sit-3.9.0
+
+
+pbap-3.9.0.14-2298162
+sar -f /var/log/sa/sa22 -s 17:55:00 -e 18:05:00 -A
+sar -s 17:55:00 -e 18:05:00 -A
+
+2017/09/20 16:30:00
+
+sar -s 16:30:00 -e 16:40:00 -u
+CPU all 表示统计信息为所有 CPU 的平均值。
+%user   显示在用户级别(application)运行使用 CPU 总时间的百分比。
+%nice   显示在用户级别，用于nice操作，所占用 CPU 总时间的百分比。
+
+sar -s 16:30:00 -e 16:40:00 -q
+runq-sz 运行队列的长度（等待运行的进程数）
+plist-sz    进程列表中进程（processes）和线程（threads）的数量
+ldavg-1 最后1分钟的系统平均负载（System load average）
+ldavg-5 过去5分钟的系统平均负载
+ldavg-15    过去15分钟的系统平均负载
+
+
+#sar -s 16:30:00 -e 16:40:00 -c
+proc/s  每秒钟创建的进程数
+
+
+
+sar -s 16:30:00 -e 16:40:00 -B
+pgpgin/s    每秒钟从磁盘读入的系统页面的 KB 总数
+pgpgout/s   每秒钟向磁盘写出的系统页面的 KB 总数
+
+
+mpstat -s 16:30:00 -e 16:40:00
+intr/s  显示CPU每秒接收到的中断总数。
+
+
+sar -s 16:30:00 -e 16:40:00 -r
+kbmemused   已使用的内存数量（不包含内核使用的内存），单位为 KB
+%memused    已使用内存的百分数
+
+
+sar -s 16:30:00 -e 16:40:00 -w
+cswch/s 每秒的系统上下文切换数量
+
+
+sar -s 16:30:00 -e 16:40:00 -W
+pswpin/s    每秒系统换入的交换页面（swap page）数量
+pswpout/s   每秒系统换出的交换页面（swap page）数量
+
+
+sar -s 16:30:00 -e 16:40:00 -n DEV |grep eth0
+rxbyt/s 每秒接收的字节（byte）总数
+txbyt/s 每秒传输的字节（byte）总数
+
+
+sar -s 16:30:00 -e 16:40:00 -n EDEV |egrep 'eth0|IFACE'
+coll/s  传输包时每秒发生冲突（collision）的总数

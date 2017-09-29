@@ -1,0 +1,16 @@
+{
+	"head": {
+		"deviceId": "47ABFEAD-447F-40B7-ABDD-430A2E3D9991",
+		"channel": "iOS",
+		"signature": "c76a6ad72a9a6cac8575e48ea74f28bbf17c5245",
+		"businessType": "customer",
+		"version": "2.0.0",
+		"timestamp": "1490839485395",
+		"appid": "emtwX2lvcw==",
+		"nonce": "N2N2REhI"
+	},
+	"body": {
+		"usrName": "15600000005",
+		"usrPwd": "qq123456"
+	}
+}
