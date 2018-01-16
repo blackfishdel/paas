@@ -227,6 +227,7 @@ BASE_DIR="$( cd -P $( dirname ${SOURCE} ) && pwd )"
 cd ${BASE_DIR}
 EOF
 }
+
 #------------------------------------------------------------------------------
 #名字:fun_superadd_script
 #描述:在“删除文件脚本”文件末尾添加内容
@@ -236,6 +237,7 @@ EOF
 fun_superadd_script(){
 echo "${1}" >> "${WORKSPACE}/remove_file.sh"
 }
+
 #------------------------------------------------------------------------------
 #init
 #------------------------------------------------------------------------------
@@ -319,12 +321,12 @@ for ((i=${#jq_dependencies[@]};i>0;i--));do
 				| jq ".[${j}] | .branch"  | sed {s/\"//g})
 			jq_tag=$(echo ${jq_dependency} \
 				| jq ".[${j}] | .tag" | sed {s/\"//g})
-			
+
 			#从git下载代码
 			cd ${dependency_dir}
 			git clone "${git_base_url}${jq_project}.git"
 			cd "${dependency_dir}/${jq_project}"
-			
+
 			#切换分支或tag
 			if [ ${jq_branch} ];then
 				git checkout -b ${jq_branch} "origin/${jq_branch}"
@@ -333,7 +335,7 @@ for ((i=${#jq_dependencies[@]};i>0;i--));do
 				git checkout -b "${jq_tag}" "${jq_tag}"
 				git pull
 			fi
-			
+
 			#判断父pom是否有外部依赖
 			if [[ $(echo ${jq_dependency} | jq ".[${j}] | .dependencies | .[] | .modules") && \
 				$(echo ${jq_dependency} | jq ".[${j}] | .dependencies | .[] | .modules") != "null" ]];then
@@ -342,7 +344,7 @@ for ((i=${#jq_dependencies[@]};i>0;i--));do
 					| jq ".[${j}] | .dependencies | .[] | .modules | .[] | .name" | sed {s/\"//g})
 				jq_values=$(echo ${jq_dependency} \
 					| jq ".[${j}] | .dependencies | .[] | .modules | .[] | .version" | sed {s/\"//g})
-				
+
 				#修改父pom外部依赖版本号
 				if [ ${#jq_names[@]} != 0 ];then
 					for ((k=0;k<${#jq_names[@]};k++));do
@@ -351,10 +353,10 @@ for ((i=${#jq_dependencies[@]};i>0;i--));do
 					done
 				fi
 			fi
-			
+
 			#修改父pom版本号
 			fun_version_change "${build_context}" "${dependency_dir}/${jq_project}"
-			
+
 			#判断父pom是否有子项目
 			if [[ $(echo ${jq_dependency} | jq ".[${j}] | .modules") && \
 				$(echo ${jq_dependency} | jq ".[${j}] | .modules") != "null" ]];then
@@ -363,7 +365,7 @@ for ((i=${#jq_dependencies[@]};i>0;i--));do
 					| jq ".[${j}] | .modules | .[] | .name" | sed {s/\"//g}))
 				jq_sub_values=($(echo ${jq_dependency} \
 					| jq ".[${j}] | .modules | .[] | .version" | sed {s/\"//g}))
-				
+
 				#修改子项目pom版本号
 				if [ ${#jq_sub_names[@]} != 0 ];then
 					for ((k=0;k<${#jq_sub_names[@]};k++));do
@@ -372,7 +374,7 @@ for ((i=${#jq_dependencies[@]};i>0;i--));do
 					done
 				fi
 			fi
-			
+
 			#父项目打包上传到nexus
 			set +e
 			fun_deploy_nexus "${build_context}" "${dependency_dir}/${jq_project}"
@@ -395,7 +397,7 @@ for ((i=${#jq_dependencies[@]};i>0;i--));do
 					done
 				fi
 			fi
-			
+
 			#删除该项目文件夹
 			cd ${dependency_dir}
 			rm -rf ${jq_project}
@@ -459,7 +461,7 @@ diff_file_list=($(diff -ruaq "${base_dir}" "${master_dir}" \
 add_file_list=($(diff -ruaq "${base_dir}" "${master_dir}" \
 		| grep '^Only' | grep "${base_dir}" | grep -v '\.git' \
 		| awk '{print $3,$4;}' | sed 's/: /\//' ))
-	
+
 #屏蔽master的文件列，默认为master需要文件
 remove_file_list=($(diff -ruaq "${base_dir}" "${master_dir}" \
 		| grep '^Only' | grep "${master_dir}" | grep -v '\.git' \
@@ -570,7 +572,7 @@ rm -rf ${last_tag_zip_path}
 for ((y=0;y<${#web_modules[@]};y++));do
 	#create remove script
 	fun_create_script
-	
+
 	#master_dir进行docker image构建并上传到docker registry
 	if [ ${web_modules[y]} = ${project_name} ];then
 		master_web="${master_dir}"
@@ -589,7 +591,7 @@ for ((y=0;y<${#web_modules[@]};y++));do
 	fi
 	#对last_web进行编译
 	fun_package_pro ${last_web}
-	
+
 	#------------------------------------------------------------------------------
 
 	#对比master与last编译后修改文件
@@ -704,7 +706,7 @@ jq_sub_names=($(echo ${json_description} | jq '.modules | .[] | .name' | sed {s/
 #修改子项目pom版本号
 if [ ${#jq_sub_names[@]} != 0 ];then
 	for ((i=0;i<${#jq_sub_names[@]};i++));do
-		fun_version_change "${build_context}" "${base_dir}/${jq_sub_names[$i]}" 
+		fun_version_change "${build_context}" "${base_dir}/${jq_sub_names[$i]}"
 	done
 fi
 
@@ -716,7 +718,7 @@ set -e
 if [ ${#jq_sub_names[@]} != 0 ];then
 	for ((i=0;i<${#jq_sub_names[@]};i++));do
 		set +e
-		fun_deploy_nexus "${build_context}" "${base_dir}/${jq_sub_names[$i]}" 
+		fun_deploy_nexus "${build_context}" "${base_dir}/${jq_sub_names[$i]}"
 		set -e
 	done
 fi
@@ -730,12 +732,12 @@ for ((i=0;i<${#web_modules[@]};i++));do
 		base_web="${base_dir}/${web_modules[i]}"
 	fi
 	fun_push_image ${base_web}
-	
+
 	#删除编译后文件
 	cd ${base_web}
 	rm -rf $(find ./ -name "*\.war"| grep "docker")
 	war_path=$(find ./ -name "*\.war" | head -n 1)
-	
+
 	#压缩增量包并上传（scp）到指定服务器备份
 	fun_backup_file "${war_path}"
 done
