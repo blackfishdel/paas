@@ -1,6 +1,0 @@
-zkpd register-1.0.0.4-2297241 register:1.0.0-ALPHA && \
-zkpd gateway-1.0.0.4-2297242 gateway:1.0.0-ALPHA 
-
-docker rm -f register-1.0.0.4-2297241 gateway-1.0.0.4-2297242
-
-

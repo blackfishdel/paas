@@ -213,7 +213,8 @@ scp "${1}" "root@192.168.1.215:/home/test-version/joinwe/"
 #范例:fun_backup_file "/dir_path"
 #------------------------------------------------------------------------------
 fun_create_script(){
-cat << "EOF" >> "${WORKSPACE}/remove_file.sh"
+cat << "${WORKSPACE}/remove_file.sh"
+
 #!/bin/bash
 #BASEDIR解决获得脚本存储位置绝对路径
 #这个方法可以完美解决别名、链接、source、bash -c 等导致的问题
