@@ -1,191 +1,91 @@
-zkpd register-1.0.0.4-2297241 register:1.0.0-ALPHA && \
-zkpd gateway-1.0.0.4-2297242 gateway:1.0.0-ALPHA
-
-docker rm -f register-1.0.0.4-2297241 gateway-1.0.0.4-2297242
-
-
-对微服务的理解，eureka到底做了什么
-
-Eureka:
-1. 是纯正的 servlet 应用，需构建成war包部署
-2. 使用了 Jersey 框架实现自身的 RESTful HTTP接口
-3. peer之间的同步与服务的注册全部通过 HTTP 协议实现
-4. 定时任务(发送心跳、定时清理过期服务、节点同步等)通过 JDK 自带的 Timer 实现
-5. 内存缓存使用Google的guava包实现
-
-eureka-core 模块包含了功能的核心实现:
-1. com.netflix.eureka.cluster - 与peer节点复制(replication)相关的功能
-2. com.netflix.eureka.lease - 即”租约”, 用来控制注册信息的生命周期(添加、清除、续约)
-3. com.netflix.eureka.registry - 存储、查询服务注册信息
-4. com.netflix.eureka.resources - RESTful风格中的”R”, 即资源。相当于SpringMVC中的Controller
-5. com.netflix.eureka.transport - 发送HTTP请求的客户端，如发送心跳
-6. com.netflix.eureka.aws - 与amazon AWS服务相关的类
-
-eureka-client模块:
-Eureka客户端，微服务通过该客户端与Eureka进行通讯，屏蔽了通讯细节
-
-eureka-server模块:
-包含了 servlet 应用的基本配置，如 web.xml。构建成功后在该模块下会生成可部署的war包。
-
-Eureka的几处缓存
-Eureka的wiki上有一句话，大意是一个服务启动后最长可能需要2分钟时间才能被其它服务感知到，但是文档并没有解释为什么会有这2分钟。其实这是由三处缓存 + 一处延迟造成的。
-1.Eureka Client对已经获取到的注册信息也做了30s缓存。即服务通过eureka客户端第一次查询到可用服务地址后会将结果缓存，下次再调用时就不会真正向Eureka发起HTTP请求了。
-2.负载均衡组件Ribbon也有30s缓存。Ribbon会从上面提到的Eureka Client获取服务列表，然后将结果缓存30s。
-3.如果你并不是在Spring Cloud环境下使用这些组件(Eureka, Ribbon)，你的服务启动后并不会马上向Eureka注册，而是需要等到第一次发送心跳请求时才会注册。心跳请求的发送间隔也是30s。（Spring Cloud对此做了修改，服务启动后会马上注册）
-以上这四个30秒正是官方wiki上写服务注册最长需要2分钟的原因。
-
-服务注册信息不会被二次传播
-如果Eureka A的peer指向了B, B的peer指向了C，那么当服务向A注册时，B中会有该服务的注册信息，但是C中没有。
-也就是说，如果你希望只要向一台Eureka注册其它所有实例都能得到注册信息，那么就必须把其它所有节点都配置到当前Eureka的peer属性中。
-
-Zookeeper保证CP
-当向注册中心查询服务列表时，我们可以容忍注册中心返回的是几分钟以前的注册信息，但不能接受服务直接down掉不可用。也就是说，服务注册功能对可用性的要求要高于一致性。
-但是zk会出现这样一种情况，当master节点因为网络故障与其他节点失去联系时，剩余节点会重新进行leader选举。
-问题在于，选举leader的时间太长，30 ~ 120s, 且选举期间整个zk集群都是不可用的，这就导致在选举期间注册服务瘫痪。
-在云部署的环境下，因网络问题使得zk集群失去master节点是较大概率会发生的事，虽然服务能够最终恢复，但是漫长的选举时间导致的注册长期不可用是不能容忍的。
-
-Eureka保证AP
-Eureka看明白了这一点，因此在设计时就优先保证可用性。Eureka各个节点都是平等的，几个节点挂掉不会影响正常节点的工作，剩余的节点依然可以提供注册和查询服务。
-而Eureka的客户端在向某个Eureka注册或时如果发现连接失败，则会自动切换至其它节点，只要有一台Eureka还在，就能保证注册服务可用(保证可用性)，只不过查到的信息可能不是最新的(不保证强一致性)。
-除此之外，Eureka还有一种自我保护机制，如果在15分钟内超过85%的节点都没有正常的心跳，那么Eureka就认为客户端与注册中心出现了网络故障，此时会出现以下几种情况：
-1. Eureka不再从注册列表中移除因为长时间没收到心跳而应该过期的服务
-2. Eureka仍然能够接受新服务的注册和查询请求，但是不会被同步到其它节点上(即保证当前节点依然可用)
-3. 当网络稳定时，当前实例新的注册信息会被同步到其它节点中
-因此， Eureka可以很好的应对因网络故障导致部分节点失去联系的情况，而不会像zookeeper那样使整个注册服务瘫痪。
-
-Eureka作为单纯的服务注册中心来说要比zookeeper更加“专业”，因为注册服务更重要的是可用性，我们可以接受短期内达不到一致性的状况。
-不过Eureka目前1.X版本的实现是基于servlet的Java web应用，它的极限性能肯定会受到影响。
-期待正在开发之中的2.X版本能够从servlet中独立出来成为单独可部署执行的服务。
-
-分布式应用早在十几年前就开始出现，各自的应用运行在各自的tomcat，jboss一类的容器中，他们之间的相互调用变成了一种远程调用，而实现远程调用的方式很多。
-按照协议划分，可以有RPC，Webservice，http。不同的框架也对他们有了各自的实现，如dubbo(x)，motan就都是RPC框架，本文所要讲解的Feign便可以理解为一种http框架，用于分布式服务之间通过Http进行接口交互。
-说他是框架，有点过了，可以理解为一个http工具，只不过在spring cloud全家桶的体系中，它比httpclient，okhttp，retrofit这些http工具都要强大的多。
-
-服务调用，为什么是feign
-
-服务提供方使用的是一个RestController暴露计算服务，服务消费方使用http工具（Feign）进行远程调用，这再清晰不过了，也是符合软件设计的，因为Feign接口的定义是存在于消费方，所以是真正的松耦合。
-但是习惯了使用rpc共享接口的设计，我们也可以将接口定义在服务提供方，这样做的好处是，服务可能被多个消费者使用，不需要每个消费者都定义一次Feign接口。
-
-restful设计以语言无关，松耦合的优势著称。在Spring Cloud Feign的相关文档中有这样的描述：
-
-restful设计以语言无关，松耦合的优势著称。
-单个微服务数据独立，可独立部署和运行。
-虽然微服务本身是可以独立部署和运行的，但仍然避免不了业务上的你来我往，这就涉及到要对外通信，当微服务的数量达到一定量级的时候，如何提供一个高效的集群通信机制成为一个问题。
-
-pom规范
-单个微服务拥有自己的进程，进程本身就可以动态的启停，为无缝升级的打好了基础，但谁来启动和停止进程，什么时机，选择在哪台设备上做这件事情才是无缝升级的关键。
-这个能力并不是微服务本身提供的，而是需要背后强大的版本管理和部署能力。
-
-容器（Docker）与微服务
-•容器够小
-–解决微服务对机器数量的诉求
-•容器独立
-–解决多语言问题
-•开发环境与生产环境相同
-–单机开发、提升效率
-•容器效率高
-–省钱
-•代码/image一体化
-–可复用管理系统
-•容器的横向与纵向扩容
-–可复制
-–可动态调节CPU与内存
-
-项目中可变配置与不可变配置
-
-很多时候，我们项目在开发环境和生成环境的环境配置是不一样的，例如，数据库配置，在开发的时候，我们一般用测试数据库，而在生产环境的时候，我们是用正式的数据，这时候，我们可以利用profile在不同的环境下配置用不同的配置文件或者不同的配置
-
-spring boot允许你通过命名约定按照一定的格式(application-{profile}.properties)来定义多个配置文件，然后通过在application.properyies通过spring.profiles.active来具体激活一个或者多个配置文件，
-如果没有没有指定任何profile的配置文件的话，spring boot默认会启动application-default.properties。
-
-
-
-微服务的负载：Ribbon实现客户端的负载均衡
-
-
-Description	Resource	Path	Location	Type
-The declared package "x" does not match the expected package "x"	GoodsPushQueueToAliYunJob.java	/mobile-goodssearch-service/src/main/java/com.m5173.mobile.goodsSearch/job	line 1	Java Problem
-
-
-Errors occurred during the build.
-Errors running builder 'Integrated External Tool Builder' on project 'mobile-goodssearch-service'.
-The builder launch configuration could not be found.
-The builder launch configuration could not be found.
-
-mvn eclipse:clean &&\ cd .. &&\
-mvn eclipse:clean &&\ cd .. &&\
-mvn eclipse:clean &&\ cd .. &&\
-mvn eclipse:clean &&\ cd .. &&\
-mvn eclipse:clean &&\ cd .. &&\
-mvn eclipse:clean &&\ cd .. &&\
-mvn eclipse:clean &&\ cd .. &&\
-mvn eclipse:clean &&\ cd .. &&\
-mvn eclipse:clean &&\ cd .. &&\
-  sublime
-cd ./category-service &&\ mvn eclipse:clean &&\ cd .. &&\
-cd ./mainpay-service &&\ mvn eclipse:clean &&\ cd .. &&\
-cd ./message-service &&\ mvn eclipse:clean &&\ cd .. &&\
-cd ./old-financing-service &&\ mvn eclipse:clean &&\ cd .. &&\
-cd ./sms-service &&\ mvn eclipse:clean &&\ cd .. &&\
-cd ./spring-cloud-service &&\ mvn eclipse:clean &&\ cd .. &&\
-cd ./sso-service &&\ mvn eclipse:clean &&\ cd .. &&\
-cd ./user-service &&\ mvn eclipse:clean &&\ cd ..
-
-echo "./"$(ls | grep service)" mvn eclipse:clean &&\ cd .. &&\"
-
-
-
-Ribbon的使用
-
-把LB的功能以库的方式集成到服务消费方的进程内，而不是由一个集中的设备或服务器提供。这种方案称为软负载均衡（Soft Load Balancing）或者客户端负载均衡。
-在Spring Cloud中配合Eureka的服务注册功能，Ribbon子项目则为REST客户端实现了负载均衡。
-
-
-项目结构规范
-
-原来项目打包服务的时候需要把全部项目一起编译打包，耗时长久。在拆分服务之后可以同时打包多个项目，现在编译打包耗时小于2分钟。
-
-
-通过查找spring-cloud的文档发现，zuul默认是屏蔽Cookie的，要想使用Cookie，要在application.yml中配置sensitiveHeaders并把它设为空，这是一个屏蔽的黑名单，默认不为空，会屏蔽Cookie，例子如下:
-
-zuul:
-  routes:
-    feign-a:
-      path: /feign-a/**
-      serviceId: fegin-service-a
-      sensitiveHeaders:
-
-zuul默认是屏蔽Cookie
-feign默认是屏蔽Cookie
-
-通过这个配置zuul已经可以把cookie传到feign中了，那么feign要如何把cookie传到微服务中呢?我们可以通过feign的RequestInterceptor接口来实现：
-@Configuration
-public class FeignConfig {
-
-    @Bean
-    public RequestInterceptor headerInterceptor() {
-        return new RequestInterceptor() {
-            @Override
-            public void apply(RequestTemplate requestTemplate) {
-                ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder
-                        .getRequestAttributes();
-                HttpServletRequest request = attributes.getRequest();
-                Enumeration<String> headerNames = request.getHeaderNames();
-                if (headerNames != null) {
-                    while (headerNames.hasMoreElements()) {
-                        String name = headerNames.nextElement();
-                        String values = request.getHeader(name);
-                        requestTemplate.header(name, values);
-                    }
-                }
-            }
-        };
-    }
-}
-
-hystrix:
-  command:
-    default:
-      execution:
-        isolation:
-          strategy: SEMAPHORE
+M站升级业务
+	前端
+		APP H5页面（m-h5-client）
+		M站前端页面
+		手游
+		端游、手游
+	聚合层
+		公共聚合
+			个人管理
+			热门排行
+			官方账号验证
+			banner
+			类目查询
+			云验号开关
+			自动化区服开关
+			商品查询
+			APP登陆版本接口
+			环信
+			图片验证码服务
+			查询消息（系统消息、用户消息、查找出售流程中的消息、获取首页消息列表）
+			短信
+			用户登录或者注册
+		问题中心（m-question-restapi）
+			问题列表
+			验证客服QQ
+			投诉
+			问答列表
+			客服中心公告
+		端游账号（pc-game-restapi）
+			账号
+			装备
+			游戏币
+			通货
+			安心买
+		代练服务（m-dl-restapi）
+			代练套餐
+			代练店铺
+			电竞帮
+		风控（m-risk-restapi）
+			发送消息到主站
+			接收消息
+		手游（sy-game-restapi）
+			账号
+			游戏币
+			专题
+	基础服务
+		用户管理服务（user-service）
+			环信
+			用户登录或者注册
+			用户信息
+		类目服务（category-service）
+		短信服务（sms-service）
+		老资金服务（old-financing-service）
+		资金服务（mainpay-service）
+			提供主站APP支付接口
+			交易
+		阿里云关键字搜索服务（aliyun-search-service）
+		消息服务（message-service）
+			商品日志
+			添加日志
+			查询消息（系统消息、用户消息、查找出售流程中的消息、获取首页消息列表）
+			订单日志管理
+			商城价格日志管理
+		openAPI调用
+			goods
+			category
+			mainpay
+			user
+			order
+			sms
+			金币商城
+			云验号
+			安心买
+	后台管理
+		M站后台（m-backend-restapi）
+			端游管理
+			手游管理
+			代练管理
+			客服管理
+未拆分服务
+	浏览记录
+	区服历史
+	热搜中心
+	热门推荐
+	红包
+	猜你喜欢
+	金币商城
+	手游订单
+	手游充值
+	订单服务
+	很多已被订单中心接口替换
